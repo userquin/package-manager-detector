@@ -3,7 +3,7 @@
  */
 // #region Functions
 export function constructCommand(_, _) {}
-export function resolveCommand(_, _, _) {}
+export function resolveCommand(_, _, _, _) {}
 export function splitRunArgs(_, _) {}
 // #endregion
 

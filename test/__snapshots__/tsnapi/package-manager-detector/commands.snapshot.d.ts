@@ -3,7 +3,7 @@
  */
 // #region Functions
 export declare function constructCommand(_: AgentCommandValue, _: string[]): ResolvedCommand | null;
-export declare function resolveCommand(_: Agent, _: Command, _: string[]): ResolvedCommand | null;
+export declare function resolveCommand(_: Agent, _: Command, _: string[], _?: ResolveCommandOptions): ResolvedCommand | null;
 export declare function splitRunArgs(_: string[], _?: string[]): {
     before: string[];
     script: string | undefined;

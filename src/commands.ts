@@ -1,5 +1,4 @@
-import type { Agent, AgentCommands, AgentCommandValue, Command, ResolvedCommand } from './types'
-
+import type { Agent, AgentCommands, AgentCommandValue, Command, ResolveCommandOptions, ResolvedCommand } from './types'
 /**
  * Split `run` arguments around the script name for package managers that
  * require `--` to forward extra arguments to the script (npm, pnpm@6).
@@ -197,6 +196,31 @@ export const COMMANDS = {
 } satisfies Record<Agent, AgentCommands>
 
 /**
+ * Generate workspace CLI flags for the given agent and workspace names.
+ *
+ * @param agent The package manager agent.
+ * @param workspaces The workspace names to scope to.
+ * @returns An array of CLI arguments (e.g. `['-w', 'pkg-a']`), or `undefined`
+ *   when no workspace mapping exists for the agent.
+ */
+function workspaceArgs(agent: Agent, workspaces: string[]): string[] | undefined {
+  const name = agent.replace(/@.*$/, '')
+  switch (name) {
+    case 'npm':
+      return workspaces.flatMap(w => ['-w', w])
+    case 'pnpm':
+      return workspaces.flatMap(w => ['--filter', w])
+    case 'bun':
+      return workspaces.flatMap(w => ['--filter', w])
+    case 'yarn':
+      // Yarn uses `workspace <name>` as a prefix; additional args follow after.
+      return ['workspace', ...workspaces]
+    default:
+      return undefined
+  }
+}
+
+/**
  * Resolve the command for the agent merging the command arguments with the provided arguments.
  *
  * For example, to show how to install `@antfu/ni` globally using `pnpm`:
@@ -206,14 +230,46 @@ export const COMMANDS = {
  * console.log(`${command} ${args.join(' ')}`) // 'pnpm add -g @antfu/ni'
  * ```
  *
+ * With workspace scoping:
+ * ```js
+ * const { command, args } = resolveCommand('npm', 'add', ['lodash'], { workspaces: ['pkg-a'] })
+ * console.log(`${command} ${args.join(' ')}`) // 'npm i lodash -w pkg-a'
+ * ```
+ *
  * @param agent The agent to use.
  * @param command the command to resolve.
  * @param args The arguments to pass to the command.
+ * @param options Optional settings such as `workspaces`.
  * @returns {ResolvedCommand} The resolved command or `null` if the agent command is not found.
  */
-export function resolveCommand(agent: Agent, command: Command, args: string[]): ResolvedCommand | null {
+export function resolveCommand(
+  agent: Agent,
+  command: Command,
+  args: string[],
+  options?: ResolveCommandOptions,
+): ResolvedCommand | null {
   const value = COMMANDS[agent][command] as AgentCommandValue
-  return constructCommand(value, args)
+  const resolved = constructCommand(value, args)
+  if (resolved == null)
+    return null
+
+  if (options?.workspaces?.length) {
+    const wsArgs = workspaceArgs(agent, options.workspaces)
+    if (wsArgs) {
+      if (command === 'run') {
+        // For `run`, workspace flags must appear before the script name.
+        // Yarn: `yarn workspace <name> run <script>` → insert before `run` (index 0)
+        // Others: `npm run -w <name> <script>` → insert after `run` (index 1)
+        const agentName = agent.replace(/@.*$/, '')
+        resolved.args.splice(agentName === 'yarn' ? 0 : 1, 0, ...wsArgs)
+      }
+      else {
+        resolved.args.push(...wsArgs)
+      }
+    }
+  }
+
+  return resolved
 }
 
 /**

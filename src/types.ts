@@ -32,6 +32,18 @@ export interface ResolvedCommand {
   args: string[]
 }
 
+export interface ResolveCommandOptions {
+  /**
+   * Target workspace(s) to scope the command to.
+   *
+   * The workspace names are translated to the correct CLI flags
+   * for each package manager:
+   * - npm / pnpm / bun: `-w <name>` / `--filter <name>` / `--filter <name>`
+   * - yarn / yarn@berry: `workspace <name>`
+   */
+  workspaces?: string[]
+}
+
 export type DetectStrategy = 'lockfile' | 'packageManager-field' | 'devEngines-field' | 'install-metadata'
 
 export interface DetectOptions {

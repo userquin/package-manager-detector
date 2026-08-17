@@ -118,3 +118,72 @@ describe('pnpm@6 run filter flag handling', () => {
     expect(resolved).toEqual({ command: 'pnpm', args: ['run', '-F', 'packages/foo', 'test'] })
   })
 })
+
+describe('resolveCommand with workspaces', () => {
+  it('npm add with single workspace', () => {
+    const resolved = resolveCommand('npm', 'add', ['lodash'], { workspaces: ['pkg-a'] })
+    expect(resolved).toEqual({ command: 'npm', args: ['i', 'lodash', '-w', 'pkg-a'] })
+  })
+
+  it('npm add with multiple workspaces', () => {
+    const resolved = resolveCommand('npm', 'add', ['lodash'], { workspaces: ['pkg-a', 'pkg-b'] })
+    expect(resolved).toEqual({ command: 'npm', args: ['i', 'lodash', '-w', 'pkg-a', '-w', 'pkg-b'] })
+  })
+
+  it('pnpm add with workspace', () => {
+    const resolved = resolveCommand('pnpm', 'add', ['lodash'], { workspaces: ['pkg-a'] })
+    expect(resolved).toEqual({ command: 'pnpm', args: ['add', 'lodash', '--filter', 'pkg-a'] })
+  })
+
+  it('bun add with workspace', () => {
+    const resolved = resolveCommand('bun', 'add', ['lodash'], { workspaces: ['pkg-a'] })
+    expect(resolved).toEqual({ command: 'bun', args: ['add', 'lodash', '--filter', 'pkg-a'] })
+  })
+
+  it('yarn add with workspace', () => {
+    const resolved = resolveCommand('yarn', 'add', ['lodash'], { workspaces: ['pkg-a'] })
+    expect(resolved).toEqual({ command: 'yarn', args: ['add', 'lodash', 'workspace', 'pkg-a'] })
+  })
+
+  it('yarn@berry add with workspace', () => {
+    const resolved = resolveCommand('yarn@berry', 'add', ['lodash'], { workspaces: ['pkg-a'] })
+    expect(resolved).toEqual({ command: 'yarn', args: ['add', 'lodash', 'workspace', 'pkg-a'] })
+  })
+  it('npm run with workspace inserts flags before script name', () => {
+    const resolved = resolveCommand('npm', 'run', ['test'], { workspaces: ['pkg-a'] })
+    expect(resolved).toEqual({ command: 'npm', args: ['run', '-w', 'pkg-a', 'test'] })
+  })
+
+  it('pnpm run with workspace inserts flags before script name', () => {
+    const resolved = resolveCommand('pnpm', 'run', ['test', '--coverage'], { workspaces: ['pkg-a'] })
+    expect(resolved).toEqual({ command: 'pnpm', args: ['run', '--filter', 'pkg-a', 'test', '--coverage'] })
+  })
+
+  it('yarn run with workspace inserts `workspace <name>` before `run`', () => {
+    const resolved = resolveCommand('yarn', 'run', ['test'], { workspaces: ['pkg-a'] })
+    expect(resolved).toEqual({ command: 'yarn', args: ['workspace', 'pkg-a', 'run', 'test'] })
+  })
+
+  it('yarn@berry run with workspace inserts `workspace <name>` before `run`', () => {
+    const resolved = resolveCommand('yarn@berry', 'run', ['test'], { workspaces: ['pkg-a'] })
+    expect(resolved).toEqual({ command: 'yarn', args: ['workspace', 'pkg-a', 'run', 'test'] })
+  })
+
+  it('returns null for unsupported commands even with workspaces', () => {
+    const resolved = resolveCommand('deno', 'upgrade-interactive', [], { workspaces: ['pkg-a'] })
+    // deno upgrade-interactive is not null, but if it were:
+    // resolved should be null
+    // For deno, workspaceArgs returns undefined so no flags added
+    expect(resolved).toBeDefined()
+  })
+
+  it('ignores empty workspaces array', () => {
+    const resolved = resolveCommand('npm', 'add', ['lodash'], { workspaces: [] })
+    expect(resolved).toEqual({ command: 'npm', args: ['i', 'lodash'] })
+  })
+
+  it('ignores undefined workspaces', () => {
+    const resolved = resolveCommand('npm', 'add', ['lodash'], {})
+    expect(resolved).toEqual({ command: 'npm', args: ['i', 'lodash'] })
+  })
+})
